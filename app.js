@@ -27,7 +27,6 @@ app.post('/api/login', (req, res) => {
 // === API ACADÉMICA (Profesores) ===
 app.get('/api/profesores', async (req, res) => {
     try {
-        // AQUÍ ESTABA EL ERROR: Debemos usar el mismo alias que en Entidades.js
         const profes = await Profesor.findAll({ 
             include: { model: Materia, as: 'materias' } 
         });
@@ -92,4 +91,5 @@ const PORT = 4000;
 db.sync({ alter: true }).then(() => {
     console.log('✅ Sistema Docente Actualizado');
     app.listen(PORT, () => console.log(`🚀 Corriendo en http://localhost:${PORT}`));
+
 });
