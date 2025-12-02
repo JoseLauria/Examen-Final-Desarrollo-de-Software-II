@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Docente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #2980b9; --dark: #2c3e50; }
+        body { font-family: 'Poppins', sans-serif; margin: 0; background-color: #f4f6f7; color: var(--dark); }
+
+        .hero {
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('imagenes/web.webp');
+            background-size: cover; height: 50vh; display: flex; align-items: center; justify-content: center; text-align: center; color: white; position: relative;
+        }
+        
+        .top-nav { position: absolute; top: 20px; right: 20px; }
+        .btn-admin { background: white; color: var(--primary); padding: 10px 20px; border-radius: 30px; text-decoration: none; font-weight: bold; }
+
+        .search-container { text-align: center; margin-top: -30px; position: relative; z-index: 10; }
+        #dniInput { width: 300px; padding: 15px 25px; border-radius: 50px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-size: 1.1rem; text-align: center; }
+        .btn-search { padding: 15px 30px; border-radius: 50px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; margin-left: 10px; }
+
+        .container { max-width: 900px; margin: 50px auto; padding: 20px; }
+        .info-box { background: #d5f5e3; color: #196f3d; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px; display: none; }
+        
+        .grid-materias { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        
+        .card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .card-header { background: var(--dark); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        .card-body { padding: 20px; }
+        .card-info { font-size: 1.1rem; color: #333; margin-bottom: 5px; }
+        .tag-curso { background: #f1c40f; color: #333; padding: 2px 8px; border-radius: 4px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <header class="hero">
+        <div class="top-nav">
+            <a href="login.html" class="btn-admin">🔐 Acceso Admin</a>
+        </div>
+        <div>
+            <h1 style="font-size: 3rem; margin: 0;">Portal Docente</h1>
+            <p style="font-size: 1.2rem;">Consulta tus asignaciones y horarios</p>
+        </div>
+    </header>
+
+    <div class="search-container">
+        <form id="formBusqueda">
+            <input type="number" id="dniInput" placeholder="Ingrese su DNI de Profesor" required>
+            <button type="submit" class="btn-search">Consultar</button>
+        </form>
+    </div>
+
+    <div class="container">
+        <div id="infoDocente" class="info-box"></div>
+        <div id="gridMaterias" class="grid-materias"></div>
+    </div>
+
+    <script>
+    document.getElementById('formBusqueda').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const dni = document.getElementById('dniInput').value;
+        const container = document.getElementById('gridMaterias');
+        const infoBox = document.getElementById('infoDocente');
+        
+        // Limpiar pantalla mientras carga
+        container.innerHTML = '<p style="text-align:center; width:100%">Buscando...</p>';
+        infoBox.style.display = 'none';
+
+        try {
+            const res = await fetch(`/api/portal/${dni}`);
+            
+            if (res.status === 404) {
+                container.innerHTML = '<p style="text-align:center; color:red; width:100%">❌ DNI no encontrado o no es profesor.</p>';
+                return;
+            }
+
+            const profe = await res.json();
+            
+            // 1. Mostrar Hola al Profesor
+            infoBox.innerHTML = `👋 Hola, <strong>Prof. ${profe.nombre}</strong> <br> <small>${profe.especialidad}</small>`;
+            infoBox.style.display = 'block';
+
+            container.innerHTML = '';
+            
+            // 2. Verificar si tiene materias
+            if(!profe.materias || profe.materias.length === 0) {
+                container.innerHTML = '<p style="text-align:center; width:100%">No tienes materias asignadas todavía.</p>';
+                return;
+            }
+
+            // 3. Crear las tarjetas (Aquí estaba el error antes)
+            profe.materias.forEach(m => {
+                container.innerHTML += `
+                    <div class="card">
+                        <div class="card-header">
+                            <span>${m.nombre}</span>
+                            <span class="tag-curso">${m.curso}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-info">
+                                👨‍🏫 <strong>Docente:</strong> ${profe.nombre}
+                            </div>
+                            <div class="card-info">
+                                ⏰ <strong>Horario:</strong> ${m.horario || 'A confirmar'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+        }
+    });
+</script>
+</body>
+</html>

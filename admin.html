@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Directivo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        :root { --primary: #2980b9; --dark: #2c3e50; --bg: #ecf0f1; }
+        body { font-family: 'Roboto', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* SIDEBAR */
+        .sidebar { width: 260px; background: var(--dark); color: white; padding: 20px; display: flex; flex-direction: column; }
+        .menu-btn { background: none; border: none; color: white; padding: 15px; text-align: left; width: 100%; cursor: pointer; border-radius: 5px; margin-bottom: 5px; }
+        .menu-btn:hover, .menu-btn.active { background: #34495e; font-weight: bold; }
+        
+        /* CONTENT */
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .section { display: none; }
+        .section.active { display: block; }
+        
+        /* CARDS & FORMS */
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        input, select { padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
+        button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
+        
+        .item-lista { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .tag-curso { background: #f1c40f; color: #333; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>🎓 Gestión</h2>
+        <button class="menu-btn active" onclick="mostrar('academico')">👨‍🏫 Profesores</button>
+        <button class="menu-btn" onclick="mostrar('libreria')">📚 Inventario</button>
+        <div style="margin-top: auto;">
+            <a href="/" class="menu-btn" style="text-decoration:none; display:block; text-align:center; background:#f39c12; color:black;">🏠 Ver Portal</a>
+            <button class="menu-btn" style="background:#c0392b; margin-top:10px; text-align:center;" onclick="location.href='login.html'">Salir</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="academico" class="section active">
+            <h1>Gestión Docente</h1>
+            
+            <div class="card">
+                <h3>1. Nuevo Profesor</h3>
+                <form id="formProfe">
+                    <input type="number" id="dniProfe" placeholder="DNI (Será su acceso)" required>
+                    <input type="text" id="nombreProfe" placeholder="Nombre completo" required>
+                    <input type="text" id="especialidad" placeholder="Especialidad (ej. Historia)" required>
+                    <button type="submit">Guardar Profesor</button>
+                </form>
+            </div>
+
+            <div class="card" style="border-left: 5px solid #8e44ad;">
+                <h3>2. Asignar Materia</h3>
+                <form id="formMateria">
+                    <select id="selectProfesor" required><option>Cargando...</option></select>
+                    <input type="text" id="nombreMateria" placeholder="Materia (ej. Cívica)" required>
+                    <select id="cursoMateria" required></select>
+                    <input type="text" id="horarioMateria" placeholder="Horario (ej. Mar 08:00)">
+                    <button type="submit" style="background: #8e44ad;">Asignar</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>Plantel Docente</h3>
+                <div id="listaProfesores"></div>
+            </div>
+        </div>
+
+        <div id="libreria" class="section">
+            <h1>Inventario Institucional</h1>
+            <div class="card">
+                <h3>Nuevo Artículo</h3>
+                <form id="formArticulo">
+                    <input type="text" id="prodNombre" placeholder="Producto" required>
+                    <input type="number" id="prodPrecio" placeholder="Precio $" required>
+                    <input type="number" id="prodStock" placeholder="Stock Inicial" required>
+                    <button type="submit">Ingresar</button>
+                </form>
+            </div>
+            <div class="card">
+                <div id="listaStock"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        const CURSOS = [ "1ro A", "1ro B", "2do A", "2do B", "3ro A", "3ro B", "4to A", "4to B", "5to A", "5to B", "6to A", "6to B" ];
+
+        function mostrar(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+            if (id === 'academico') cargarAcademicos();
+            if (id === 'libreria') cargarStock();
+        }
+
+        // --- PROFESORES ---
+        async function cargarAcademicos() {
+            const res = await fetch(`${API}/profesores`);
+            const profes = await res.json();
+            const select = document.getElementById('selectProfesor');
+            const lista = document.getElementById('listaProfesores');
+
+            select.innerHTML = '<option value="">Seleccione Profesor...</option>';
+            lista.innerHTML = '';
+
+            profes.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+                const materiasHtml = (p.materias || []).map(m =>
+                    `<span class="tag-curso">${m.curso}</span> ${m.nombre} (${m.horario || '-'})`
+                ).join('<br>');
+
+                lista.innerHTML += `
+                    <div class="item-lista">
+                        <div style="flex:1">
+                            <strong>${p.nombre}</strong> <small>(${p.especialidad})</small> - <small>DNI: ${p.dni || 'Sin DNI'}</small><br>
+                            <div style="margin-top:5px; color:#555;">${materiasHtml || 'Sin materias asignadas'}</div>
+                        </div>
+                        <button onclick="eliminarProfe(${p.id})" style="background:#c0392b; padding:5px 10px;">🗑️</button>
+                    </div>`;
+            });
+        }
+
+        document.getElementById('formProfe').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await fetch(`${API}/profesores`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dni: document.getElementById('dniProfe').value,
+                    nombre: document.getElementById('nombreProfe').value, 
+                    especialidad: document.getElementById('especialidad').value 
+                })
+            });
+            e.target.reset(); cargarAcademicos();
+        });
+
+        document.getElementById('formMateria').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await fetch(`${API}/materias`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    profesorId: document.getElementById('selectProfesor').value,
+                    nombre: document.getElementById('nombreMateria').value,
+                    curso: document.getElementById('cursoMateria').value,
+                    horario: document.getElementById('horarioMateria').value
+                })
+            });
+            e.target.reset(); cargarAcademicos();
+        });
+
+        async function eliminarProfe(id) {
+            if(confirm('¿Borrar profesor?')) { await fetch(`${API}/profesores/${id}`, { method: 'DELETE' }); cargarAcademicos(); }
+        }
+
+        // --- INVENTARIO ---
+        async function cargarStock() {
+            const res = await fetch(`${API}/articulos`);
+            const items = await res.json();
+            const lista = document.getElementById('listaStock');
+            lista.innerHTML = '';
+            items.forEach(i => {
+                lista.innerHTML += `
+                    <div class="item-lista">
+                        <span>${i.producto} ($${i.precio})</span>
+                        <strong>${i.stock} u.</strong>
+                        <div>
+                            <button onclick="stock(${i.id}, 1)">+</button>
+                            <button onclick="stock(${i.id}, -1)" style="background:#c0392b">-</button>
+                        </div>
+                    </div>`;
+            });
+        }
+        async function stock(id, cant) {
+            await fetch(`${API}/articulos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cantidad: cant }) });
+            cargarStock();
+        }
+        document.getElementById('formArticulo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await fetch(`${API}/articulos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ producto: document.getElementById('prodNombre').value, precio: document.getElementById('prodPrecio').value, stock: document.getElementById('prodStock').value }) });
+            e.target.reset(); cargarStock();
+        });
+
+        // INIT
+        document.getElementById('cursoMateria').innerHTML = CURSOS.map(c => `<option>${c}</option>`).join('');
+        cargarAcademicos();
+    </script>
+</body>
+</html>
